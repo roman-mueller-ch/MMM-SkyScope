@@ -9,7 +9,11 @@
 	const DROP_AFTER_MS = 60000;
 	const NO_DATA_AFTER_MS = 60000;
 	const TWO_PI = Math.PI * 2;
+	const LABEL_HEIGHT = 26;
+	const LABEL_STICKINESS = 60; // square pixels of overlap a label puts up with before changing sides
 	const toRad = (deg) => deg * Math.PI / 180;
+	const overlapArea = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+		* Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
 	const CATEGORY_SCALE = { A1: 0.75, A2: 0.85, A5: 1.25 };
 	const SILHOUETTE = "M0,-1 L.12,-.75 L.12,-.25 L1,.2 L1,.38 L.12,.12 L.1,.62 L.38,.85 L.38,1 L0,.9 "
 		+ "L-.38,1 L-.38,.85 L-.1,.62 L-.12,.12 L-1,.38 L-1,.2 L-.12,-.25 L-.12,-.75 Z";
@@ -219,10 +223,10 @@
 				ctx.arc(center, center, r, 0, TWO_PI);
 				ctx.stroke();
 				ctx.fillStyle = this.themed(0.6);
-				ctx.fillText(`${ring}`, center, center - r + 8);
+				// The outermost ring carries the unit, away from the traffic around home.
+				const outermost = (ring + step) * kmPerUnit > rangeKm * 1.001;
+				ctx.fillText(outermost ? `${ring} ${this.units}` : `${ring}`, center, center - r + 15);
 			}
-			ctx.fillStyle = this.themed(0.6);
-			ctx.fillText(this.units, center, center + 9);
 
 			ctx.strokeStyle = this.themed(0.5);
 			ctx.beginPath();
@@ -360,11 +364,15 @@
 			ctx.globalAlpha = 1;
 		},
 
+		planeRadius (data) {
+			return this.config.size * 0.024 * (CATEGORY_SCALE[data.category] || 1);
+		},
+
 		drawPlane ({ plane, position }, now, brightness) {
 			const { ctx } = this;
 			const { data } = plane;
 			const { x, y } = this.toScreen(position);
-			const scale = this.config.size * 0.024 * (CATEGORY_SCALE[data.category] || 1);
+			const scale = this.planeRadius(data);
 			ctx.save();
 			ctx.translate(x, y);
 			ctx.rotate(toRad((data.track ?? 0) - this.config.rotation));
@@ -375,32 +383,56 @@
 			ctx.restore();
 		},
 
-		// Emergencies first, then the nearest, skipping any label that would land on one already placed.
+		// Emergencies first, then the nearest. A plane is labelled unless every side of it is off the canvas or on another label.
 		drawLabels (visible, now, size) {
 			const { ctx } = this;
 			const ordered = [...visible].sort((a, b) => b.plane.data.emergency - a.plane.data.emergency);
+			const planeBoxes = visible.map(({ plane, position }) => {
+				const { x, y } = this.toScreen(position);
+				const r = this.planeRadius(plane.data);
+				return { plane, left: x - r, right: x + r, top: y - r, bottom: y + r };
+			});
 			const placed = [];
 			let count = 0;
 			ctx.textBaseline = "alphabetic";
+			ctx.textAlign = "left";
 			for (const { plane, position } of ordered) {
 				if (count >= this.config.labelCount) break;
 				const { data } = plane;
-				const { x, y } = this.toScreen(position);
 				const altitude = this.altitudeText(data);
 				ctx.font = "600 12px 'Roboto Condensed', sans-serif";
 				const width = Math.max(ctx.measureText(data.callsign).width, ctx.measureText(altitude).width);
-				const left = x + 12 + width > size - 4 ? x - 12 - width : x + 12;
-				const box = { left, right: left + width, top: y - 13, bottom: y + 13 };
-				const hit = placed.some((other) => box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top);
-				if (hit || box.top < 0 || box.bottom > size) continue;
+				const box = this.chooseLabelBox(plane, this.toScreen(position), width, planeBoxes, placed, size);
+				if (!box) continue;
 				placed.push(box);
 				count += 1;
-				ctx.textAlign = "left";
 				ctx.fillStyle = this.planeColor(data, now);
-				ctx.fillText(data.callsign, left, y - 1);
+				ctx.fillText(data.callsign, box.left, box.top + 12);
 				ctx.font = "11px 'Roboto Condensed', sans-serif";
-				ctx.fillText(altitude, left, y + 11);
+				ctx.fillText(altitude, box.left, box.top + 24);
 			}
+		},
+
+		// The side of the plane that covers the fewest other planes. A plane keeps its side
+		// unless another is clearly better, so labels do not flicker as the planes move.
+		chooseLabelBox (plane, { x, y }, width, planeBoxes, placed, size) {
+			const gap = this.planeRadius(plane.data) + 2;
+			const tops = { right: y - LABEL_HEIGHT / 2, left: y - LABEL_HEIGHT / 2, below: y + gap, above: y - gap - LABEL_HEIGHT };
+			const lefts = { right: x + gap, left: x - gap - width, below: x - width / 2, above: x - width / 2 };
+			let best = null;
+			for (const side of Object.keys(tops)) {
+				const box = { side, left: lefts[side], right: lefts[side] + width, top: tops[side], bottom: tops[side] + LABEL_HEIGHT };
+				if (box.left < 0 || box.right > size || box.top < 0 || box.bottom > size) continue;
+				if (placed.some((other) => overlapArea(box, other) > 0)) continue;
+				let cost = side === plane.labelSide ? -LABEL_STICKINESS : 0;
+				for (const other of planeBoxes) {
+					if (other.plane !== plane) cost += overlapArea(box, other);
+				}
+				if (!best || cost < best.cost) best = { box, cost };
+			}
+			if (!best) return null;
+			plane.labelSide = best.box.side;
+			return best.box;
 		},
 
 		updateText () {
