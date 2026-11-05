@@ -2,6 +2,8 @@
 
 A live radar scope of the planes around your home for [MagicMirror²](https://magicmirror.builders/). Each plane is a silhouette turned the way it flies, coloured by its height, with a trail behind it and a sweeping beam over the top. The nearest flights are listed underneath.
 
+![The scope in demo mode, with made-up planes and one in an emergency](docs/demo.png)
+
 Inspired by [OWLOS Flight Radar](https://github.com/KirinDenis/OWLOS-FLIGHT-RADAR) for ESP32 boards. This is a separate project with its own code.
 
 ## Install
