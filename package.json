@@ -2,6 +2,7 @@
 	"name": "mmm-skyscope",
 	"version": "0.1.0",
 	"description": "A live radar scope of the planes around your home for MagicMirror²",
+	"license": "MIT",
 	"private": true,
 	"scripts": {
 		"test": "node --test"
