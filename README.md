@@ -6,9 +6,14 @@ Inspired by [OWLOS Flight Radar](https://github.com/KirinDenis/OWLOS-FLIGHT-RADA
 
 ## Install
 
-Copy this folder to `MagicMirror/modules/MMM-SkyScope`. It has no dependencies, so there is nothing to `npm install`.
+Clone it into your MagicMirror modules folder. It has no dependencies, so there is nothing to `npm install`.
 
-Add it to `config/config.js`:
+```sh
+cd ~/MagicMirror/modules
+git clone https://github.com/roman-mueller-ch/MMM-SkyScope
+```
+
+Add it to `config/config.js`, with your own `lat` and `lon`:
 
 ```js
 {
