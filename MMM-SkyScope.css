@@ -1,0 +1,40 @@
+.skyscope {
+	margin: 0 auto;
+	font-variant-numeric: tabular-nums;
+}
+
+.skyscope canvas {
+	display: block;
+}
+
+.skyscope-status {
+	margin-top: 4px;
+	text-align: center;
+}
+
+.skyscope-list {
+	width: 100%;
+	margin-top: 4px;
+	border-collapse: collapse;
+	line-height: 1.35;
+}
+
+.skyscope-list td {
+	padding: 0 6px;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.skyscope-list td:first-child {
+	color: var(--color-text-bright, #fff);
+	text-align: left;
+}
+
+.skyscope-list td:nth-child(2) {
+	text-align: left;
+}
+
+.skyscope-emergency td,
+.skyscope-emergency td:first-child {
+	color: #ff3b30;
+}
