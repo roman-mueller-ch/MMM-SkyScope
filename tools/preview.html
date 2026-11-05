@@ -1,0 +1,163 @@
+<!doctype html>
+<!--
+	Runs the real module without MagicMirror, using a small stand-in for its Module API.
+	preview.html         the demo sky, animated
+	preview.html?shot    the fixed moment used for docs/demo.png
+	preview.html?busy    a crowded made-up sky, with label placement measured over 60 seconds
+-->
+<meta charset="utf-8">
+<title>SkyScope preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;600;700&display=block" rel="stylesheet">
+<link rel="stylesheet" href="../MMM-SkyScope.css">
+<style>
+	html, body { margin: 0; background: #000; }
+	body { padding: 14px 20px 16px; color: #aaa; font-family: "Roboto Condensed", sans-serif; }
+	.xsmall { font-size: 15px; }
+	.dimmed { color: #777; }
+	.skyscope-list { color: #999; }
+	#out { color: #9f9; font-size: 13px; white-space: pre-wrap; }
+</style>
+<div id="root"></div>
+<pre id="out"></pre>
+<script>
+	window.onerror = (message, source, line) => {
+		document.getElementById("out").textContent += `ERROR ${message} at line ${line}\n`;
+	};
+	var module = { exports: {} };
+</script>
+<script src="../lib/feeds.js"></script>
+<script>
+	const feeds = module.exports;
+	let definition;
+	window.Module = { register: (name, value) => { definition = value; } };
+</script>
+<script src="../MMM-SkyScope.js"></script>
+<script>
+	const realNow = Date.now;
+	const at = (time) => { Date.now = () => time; };
+	const report = (mod, planes, source) => mod.socketNotificationReceived("SKYSCOPE_DATA", { id: "preview", ok: true, source, planes });
+
+	function mount (config) {
+		const mod = Object.create(definition);
+		mod.identifier = "preview";
+		mod.config = { ...definition.defaults, ...config };
+		mod.sendSocketNotification = (notification, payload) => {
+			if (payload.demo) report(mod, feeds.demoPlanes(payload.lat, payload.lon, payload.rangeKm, Date.now()), "demo");
+		};
+		mod.start();
+		document.getElementById("root").appendChild(mod.getDom());
+		return mod;
+	}
+
+	// A busy moment of the demo sky with the emergency plane well inside the scope, on the red half of its blink.
+	function shot () {
+		const distance = (plane) => Math.hypot(plane.lon * 111.32, plane.lat * 110.574);
+		const start = 1800000000000;
+		let time = start;
+		let most = -1;
+		for (let t = start; t < start + 1200000; t += 400) {
+			if (Math.floor(t / 400) % 2 !== 1) continue;
+			const distances = feeds.demoPlanes(0, 0, 50, t).map(distance);
+			const count = distances.filter((d) => d < 47).length;
+			if (distances[2] > 12 && distances[2] < 38 && count > most) {
+				most = count;
+				time = t;
+			}
+		}
+
+		at(time);
+		const mod = mount({ demo: true, size: 520 });
+		mod.suspend();
+		for (let back = 33; back >= 0; back -= 3) {
+			const t = time - back * 1000;
+			at(t);
+			report(mod, feeds.demoPlanes(0, 0, 50, t), "demo");
+		}
+		at(time + 800);
+		mod.draw(time + 800);
+		mod.updateText();
+	}
+
+	// Invented planes bunched north of home, the way traffic bunches near an airport.
+	function busyPlanes () {
+		return Array.from({ length: 16 }, (_, i) => {
+			const bearing = (295 + i * 137.5 % 95) * Math.PI / 180;
+			const km = 4 + i * 2.9;
+			return {
+				hex: `busy${i}`,
+				callsign: `BUSY${String(i + 1).padStart(2, "0")}`,
+				type: "A320",
+				category: "A3",
+				lat: Math.cos(bearing) * km / 110.574,
+				lon: Math.sin(bearing) * km / 111.32,
+				altFt: 3000 + i * 2400,
+				onGround: false,
+				speedKt: 280,
+				track: i * 67 % 360,
+				climbFpm: i % 2 ? -700 : 0,
+				emergency: false,
+				ageMs: 0
+			};
+		});
+	}
+
+	function busy () {
+		const start = realNow();
+		const mod = mount({ lat: 0, lon: 0, size: 440, listCount: 0 });
+		mod.suspend();
+		const planes = busyPlanes();
+		report(mod, planes, "made-up");
+
+		const frames = 1200;
+		const unlabelled = new Set();
+		const sides = {};
+		let onPlanes = 0;
+		let flips = 0;
+		for (let frame = 0; frame < frames; frame++) {
+			const now = start + frame * 50;
+			at(now);
+			const labels = [];
+			const fillText = mod.ctx.fillText;
+			mod.ctx.fillText = function (text, x, y) {
+				labels.push({ text, x, y, width: this.measureText(text).width });
+				return fillText.apply(this, arguments);
+			};
+			mod.draw(now);
+			mod.ctx.fillText = fillText;
+
+			const visible = mod.visiblePlanes(now);
+			const callsigns = labels.filter((label) => visible.some((entry) => entry.plane.data.callsign === label.text));
+			for (const label of callsigns) {
+				for (const { plane, position } of visible) {
+					if (plane.data.callsign === label.text) {
+						if (sides[label.text] && sides[label.text] !== plane.labelSide) flips += 1;
+						sides[label.text] = plane.labelSide;
+						continue;
+					}
+					const { x, y } = mod.toScreen(position);
+					const r = mod.planeRadius(plane.data);
+					if (label.x < x + r && label.x + label.width > x - r && label.y - 10 < y + r && label.y + 14 > y - r) onPlanes += 1;
+				}
+			}
+			for (const { plane } of visible.slice(0, mod.config.labelCount)) {
+				if (!callsigns.some((label) => label.text === plane.data.callsign)) unlabelled.add(plane.data.callsign);
+			}
+		}
+
+		at(start);
+		report(mod, planes, "made-up");
+		mod.draw(start);
+		Date.now = realNow;
+		document.getElementById("out").textContent += `${frames} frames\n`
+			+ `labels on other planes, per frame: ${(onPlanes / frames).toFixed(2)}\n`
+			+ `labels switching sides: ${flips}\n`
+			+ `nearest planes ever unlabelled: ${[...unlabelled].join(", ") || "none"}\n`;
+	}
+
+	const fonts = ["400 11px", "600 12px", "700 80px"].map((font) => document.fonts.load(`${font} "Roboto Condensed"`));
+	Promise.allSettled(fonts).then(() => {
+		if (location.search === "?shot") shot();
+		else if (location.search === "?busy") busy();
+		else mount({ demo: true, size: 520 });
+	});
+</script>
