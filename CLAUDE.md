@@ -9,12 +9,12 @@ A MagicMirror² module: a radar scope of the planes around a home point. See `RE
 - `lib/feeds.js`: the feeds, record parsing and the demo sky. No MagicMirror dependencies, so `npm test` can load it.
 - `tools/`: a preview page and scripts for checking the drawing without MagicMirror.
 
-The browser side asks for data on a timer and the helper keeps no timers, so `suspend` and `resume` only have to deal with the browser side.
+The browser side asks for data on a timer and the helper keeps no timers, so `suspend` and `resume` only have to deal with the browser side. Those timers stop for two separate reasons: `hidden`, when MagicMirror hides the module, and `asleep`, when MMM-PIR-Sensor has the screen off. They restart only when neither applies.
 
 ## Commands
 
 ```sh
-npm test                 # unit tests for lib/feeds.js
+npm test                 # unit tests for lib/feeds.js and the pausing
 tools/check-labels.sh    # label placement measured on a busy made-up sky
 tools/screenshot.sh      # regenerates docs/demo.png
 ```
@@ -44,6 +44,7 @@ The scope is three stacked canvases, because a Raspberry Pi 3 in Electron draws 
 - **Feeds:** adsb.lol first, adsb.fi as the fallback. Both work without a key. airplanes.live answers with a request to contact them first, so it is not used.
 - **Name:** SkyScope avoids the OWLOS and Flightradar24 names. The code is original; only the OWLOS README was read, and the README credits it as the inspiration.
 - **Controls:** no touch controls, as most mirrors have no touchscreen.
+- **Presence:** `followPresence` reads MMM-PIR-Sensor's config and copies its `powerSavingDelay`, so there is no second delay to keep in step. The radar must never sleep while the screen is on, so it stays awake if that module's `powerSaving` is off or an `alwaysOnPin` is set.
 
 ## Ideas for later
 

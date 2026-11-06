@@ -48,6 +48,7 @@ Without `lat` and `lon` it flies a made-up sky, marked DEMO in big letters.
 | `trailLength` | `12` | Reports kept in each trail. |
 | `labelCount` | `6` | Most planes labelled on the scope. |
 | `listCount` | `5` | Rows in the list, `0` for none. |
+| `followPresence` | `true` | Stop drawing and fetching while [MMM-PIR-Sensor](https://github.com/paviro/MMM-PIR-Sensor) has the screen off. Has no effect without that module, with its `powerSaving` off or with an `alwaysOnPin` set. |
 | `demo` | `false` | Show the made-up sky even with a home set. |
 
 ## Reading the scope

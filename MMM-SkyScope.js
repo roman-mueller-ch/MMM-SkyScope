@@ -1,4 +1,4 @@
-/* global Module, Path2D */
+/* global MM, Module, Path2D */
 
 (function () {
 	const KM_PER_DEG_LAT = 110.574;
@@ -35,6 +35,7 @@
 			trailLength: 12,
 			labelCount: 6,
 			listCount: 5,
+			followPresence: true,
 			demo: false
 		},
 
@@ -53,19 +54,75 @@
 			this.source = "";
 			this.lastGoodAt = Date.now();
 			this.silhouette = new Path2D(SILHOUETTE);
+			this.hidden = false; // by MagicMirror
+			this.asleep = false; // because the screen is off
+			this.sleepDelayMs = null; // null unless a motion sensor controls the screen
 			this.startPolling();
 		},
 
 		suspend () {
+			this.hidden = true;
+			this.stopActivity();
+		},
+
+		resume () {
+			this.hidden = false;
+			this.startActivity();
+		},
+
+		startActivity () {
+			if (this.hidden || this.asleep) return;
+			this.startPolling();
+			this.startLoop();
+		},
+
+		stopActivity () {
 			clearInterval(this.pollTimer);
 			this.pollTimer = null;
 			clearInterval(this.frameTimer);
 			this.frameTimer = null;
 		},
 
-		resume () {
-			this.startPolling();
-			this.startLoop();
+		notificationReceived (notification, payload) {
+			if (notification === "DOM_OBJECTS_CREATED") this.setUpPresence();
+			if (this.sleepDelayMs === null) return;
+			if (notification === "USER_PRESENCE" && payload) {
+				clearTimeout(this.sleepTimer);
+				this.wake();
+			} else if (notification === "USER_PRESENCE") {
+				this.scheduleSleep();
+			} else if (notification === "SCREEN_WAKEUP") {
+				this.wake();
+			}
+		},
+
+		// The always-on switch is not announced to other modules, so with one fitted the screen could be on during a sleep.
+		setUpPresence () {
+			const sensor = this.config.followPresence && MM.getModules().find(({ name }) => name === "MMM-PIR-Sensor");
+			if (!sensor || !sensor.config.powerSaving || sensor.config.alwaysOnPin) return;
+			this.sleepDelayMs = (sensor.config.powerSavingDelay || 0) * 1000;
+			// After a start with nobody around, the sensor turns the screen off without a notification.
+			if (!sensor.userPresence) this.scheduleSleep();
+		},
+
+		// The sensor reports the end of motion at once and turns the screen off after its delay, so wait as long.
+		scheduleSleep () {
+			clearTimeout(this.sleepTimer);
+			this.sleepTimer = setTimeout(() => this.sleep(), this.sleepDelayMs);
+		},
+
+		sleep () {
+			this.asleep = true;
+			this.stopActivity();
+			this.updateText();
+		},
+
+		wake () {
+			if (!this.asleep) return;
+			this.asleep = false;
+			this.lastGoodAt = Date.now();
+			this.updateText();
+			this.startActivity();
 		},
 
 		startPolling () {
@@ -482,6 +539,8 @@
 			const noData = !this.demo && now - this.lastGoodAt > NO_DATA_AFTER_MS;
 			if (this.demo) {
 				this.statusEl.textContent = "DEMO: made-up planes. Set lat and lon for the real sky.";
+			} else if (this.asleep) {
+				this.statusEl.textContent = "Paused until someone is here";
 			} else if (noData) {
 				this.statusEl.textContent = "NO DATA: retrying";
 			} else if (this.source) {
