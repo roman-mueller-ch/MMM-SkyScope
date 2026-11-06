@@ -43,7 +43,7 @@ Without `lat` and `lon` it flies a made-up sky, marked DEMO in big letters.
 | `color` | `"#66ffb2"` | Colour of the scope. Any CSS colour without transparency. |
 | `updateInterval` | `15000` | Milliseconds between requests, at least 10000. |
 | `sweepSeconds` | `6` | Seconds for one turn of the beam. |
-| `frameRate` | `20` | Frames per second. Lower it on a slow Raspberry Pi. |
+| `frameRate` | `12` | Frames per second. Lower it on a slow Raspberry Pi. |
 | `hideGround` | `true` | Hide planes parked or taxiing. |
 | `trailLength` | `12` | Reports kept in each trail. |
 | `labelCount` | `6` | Most planes labelled on the scope. |

@@ -29,7 +29,7 @@
 			color: "#66ffb2",
 			updateInterval: 15000,
 			sweepSeconds: 6,
-			frameRate: 20,
+			frameRate: 12,
 			hideGround: true,
 			trailLength: 12,
 			labelCount: 6,
@@ -135,6 +135,7 @@
 
 			this.rgb = this.parseColor(this.config.color);
 			this.background = this.renderBackground();
+			this.sweep = this.renderSweep();
 			this.updateText();
 			this.startLoop();
 			return this.wrapper;
@@ -255,6 +256,23 @@
 			return layer;
 		},
 
+		// The glow fades out within a quarter turn behind the beam, so the layer holds only that
+		// quarter, with the beam along its bottom edge. Each frame turns it into place.
+		renderSweep () {
+			const layer = document.createElement("canvas");
+			const side = Math.ceil(this.geometry().radius * this.dpr);
+			layer.width = side;
+			layer.height = side;
+			const ctx = layer.getContext("2d");
+			const glow = ctx.createConicGradient(0, 0, side);
+			glow.addColorStop(0, this.themed(0));
+			glow.addColorStop(0.82, this.themed(0));
+			glow.addColorStop(1, this.themed(0.3));
+			ctx.fillStyle = glow;
+			ctx.fillRect(0, 0, side, side);
+			return layer;
+		},
+
 		planeColor (data, now) {
 			if (data.emergency) return Math.floor(now / 400) % 2 ? "#ff3b30" : "#ffffff";
 			if (data.onGround) return "#8a8a8a";
@@ -320,12 +338,12 @@
 			const { ctx } = this;
 			const { center, radius } = this.geometry();
 			const angle = beam - Math.PI / 2;
-			const glow = ctx.createConicGradient(angle, center, center);
-			glow.addColorStop(0, this.themed(0));
-			glow.addColorStop(0.82, this.themed(0));
-			glow.addColorStop(1, this.themed(0.3));
-			ctx.fillStyle = glow;
-			ctx.fillRect(center - radius, center - radius, radius * 2, radius * 2);
+			const side = this.sweep.width / this.dpr;
+			ctx.save();
+			ctx.translate(center, center);
+			ctx.rotate(angle);
+			ctx.drawImage(this.sweep, 0, -side, side, side);
+			ctx.restore();
 			ctx.strokeStyle = this.themed(0.85);
 			ctx.lineWidth = 1.5;
 			ctx.beginPath();
