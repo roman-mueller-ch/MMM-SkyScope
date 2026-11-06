@@ -3,8 +3,15 @@
 	font-variant-numeric: tabular-nums;
 }
 
+.skyscope-scope {
+	position: relative;
+}
+
 .skyscope canvas {
 	display: block;
+	position: absolute;
+	top: 0;
+	left: 0;
 }
 
 .skyscope-status {

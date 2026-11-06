@@ -27,7 +27,7 @@ Open `tools/preview.html` in a browser to watch the module fly the demo sky. The
 
 Sparse test skies hide layout problems. Check drawing changes with `tools/check-labels.sh` and by looking at `tools/preview.html?busy`. That sky is deliberately harder than real traffic, so compare its numbers between versions instead of expecting zeros. The current baseline is 3.42 labels on other planes per frame, 16 side switches and 2 nearest planes ever unlabelled.
 
-`draw` runs 12 times a second by default, possibly on a Raspberry Pi, so keep it cheap. Static parts belong in `renderBackground` and `renderSweep`, which run once.
+The scope is three stacked canvases, because a Raspberry Pi 3 in Electron draws them without a GPU and each frame costs real CPU there. The background never changes after `renderBackground`, `drawSweep` runs 12 times a second by default, and `draw` paints the planes and labels twice a second. Keep both cheap, and put static parts in `renderBackground` or `renderSweep`, which run once. Check CPU changes with `top` on a real mirror, as a fast machine hides the cost.
 
 ## Rules
 

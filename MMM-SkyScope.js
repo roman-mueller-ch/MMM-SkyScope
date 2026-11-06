@@ -9,6 +9,7 @@
 	const DROP_AFTER_MS = 60000;
 	const NO_DATA_AFTER_MS = 60000;
 	const TWO_PI = Math.PI * 2;
+	const PLANE_DRAWS_PER_SECOND = 2;
 	const LABEL_HEIGHT = 26;
 	const LABEL_STICKINESS = 60; // square pixels of overlap a label puts up with before changing sides
 	const toRad = (deg) => deg * Math.PI / 180;
@@ -58,8 +59,8 @@
 		suspend () {
 			clearInterval(this.pollTimer);
 			this.pollTimer = null;
-			cancelAnimationFrame(this.frameRequest);
-			this.frameRequest = null;
+			clearInterval(this.frameTimer);
+			this.frameTimer = null;
 		},
 
 		resume () {
@@ -116,14 +117,20 @@
 			this.wrapper.className = "skyscope";
 			this.wrapper.style.width = `${size}px`;
 
-			this.canvas = document.createElement("canvas");
 			this.dpr = window.devicePixelRatio || 1;
-			this.canvas.width = size * this.dpr;
-			this.canvas.height = size * this.dpr;
-			this.canvas.style.width = `${size}px`;
-			this.canvas.style.height = `${size}px`;
+			this.canvas = this.createLayer();
 			this.ctx = this.canvas.getContext("2d");
-			this.wrapper.appendChild(this.canvas);
+			this.rgb = this.parseColor(this.config.color);
+			this.sweep = this.renderSweep();
+			this.sweepCanvas = this.createLayer();
+			this.sweepCtx = this.sweepCanvas.getContext("2d");
+
+			// The beam has a canvas of its own, so most frames leave the planes and labels alone.
+			const scope = document.createElement("div");
+			scope.className = "skyscope-scope";
+			scope.style.height = `${size}px`;
+			scope.append(this.renderBackground(), this.sweepCanvas, this.canvas);
+			this.wrapper.appendChild(scope);
 
 			this.statusEl = document.createElement("div");
 			this.statusEl.className = "skyscope-status xsmall dimmed";
@@ -133,25 +140,36 @@
 			this.listEl.className = "skyscope-list xsmall";
 			this.wrapper.appendChild(this.listEl);
 
-			this.rgb = this.parseColor(this.config.color);
-			this.background = this.renderBackground();
-			this.sweep = this.renderSweep();
 			this.updateText();
 			this.startLoop();
 			return this.wrapper;
 		},
 
+		createLayer () {
+			const { size } = this.config;
+			const layer = document.createElement("canvas");
+			layer.width = size * this.dpr;
+			layer.height = size * this.dpr;
+			layer.style.width = `${size}px`;
+			layer.style.height = `${size}px`;
+			return layer;
+		},
+
+		// A timer and not requestAnimationFrame, which would wake the browser for every
+		// screen refresh even when no frame is due. That is costly without a GPU.
 		startLoop () {
-			if (this.frameRequest || !this.ctx) return;
-			const minFrameMs = 1000 / this.config.frameRate;
-			let lastFrame = 0;
-			const loop = (time) => {
-				this.frameRequest = requestAnimationFrame(loop);
-				if (time - lastFrame < minFrameMs) return;
-				lastFrame = time;
-				this.draw(Date.now());
+			if (this.frameTimer || !this.ctx) return;
+			const frameRate = Math.max(this.config.frameRate, 0.1);
+			const framesPerPlaneDraw = Math.max(Math.round(frameRate / PLANE_DRAWS_PER_SECOND), 1);
+			let frame = 0;
+			const step = () => {
+				const now = Date.now();
+				this.drawSweep(now);
+				if (frame % framesPerPlaneDraw === 0) this.draw(now);
+				frame += 1;
 			};
-			this.frameRequest = requestAnimationFrame(loop);
+			step();
+			this.frameTimer = setInterval(step, 1000 / frameRate);
 		},
 
 		// Any CSS colour goes in, the canvas hands it back as #rrggbb.
@@ -203,11 +221,9 @@
 
 		// Rings, ticks and bearings change only with the config, so they are drawn once.
 		renderBackground () {
-			const { size, rotation, rangeKm } = this.config;
+			const { rotation, rangeKm } = this.config;
 			const { center, radius } = this.geometry();
-			const layer = document.createElement("canvas");
-			layer.width = size * this.dpr;
-			layer.height = size * this.dpr;
+			const layer = this.createLayer();
 			const ctx = layer.getContext("2d");
 			ctx.scale(this.dpr, this.dpr);
 			ctx.font = "11px 'Roboto Condensed', sans-serif";
@@ -264,6 +280,9 @@
 			layer.width = side;
 			layer.height = side;
 			const ctx = layer.getContext("2d");
+			ctx.beginPath();
+			ctx.arc(0, side, side, 0, TWO_PI);
+			ctx.clip();
 			const glow = ctx.createConicGradient(0, 0, side);
 			glow.addColorStop(0, this.themed(0));
 			glow.addColorStop(0.82, this.themed(0));
@@ -306,23 +325,26 @@
 			return visible.sort((a, b) => a.km - b.km);
 		},
 
+		beamBearing (now) {
+			return now / (this.config.sweepSeconds * 1000) % 1 * TWO_PI;
+		},
+
+		// The planes and labels, on their own canvas above the beam.
 		draw (now) {
 			const { ctx, dpr } = this;
-			const { size, sweepSeconds, rotation } = this.config;
+			const { size, rotation } = this.config;
 			const { center, radius } = this.geometry();
-			const beam = now / (sweepSeconds * 1000) % 1 * TWO_PI;
+			const beam = this.beamBearing(now);
 			const visible = this.visiblePlanes(now);
 
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
 			ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-			ctx.drawImage(this.background, 0, 0);
 			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
 			ctx.save();
 			ctx.beginPath();
 			ctx.arc(center, center, radius, 0, TWO_PI);
 			ctx.clip();
-			this.drawSweep(beam);
 			if (this.demo) this.drawDemoMark(center);
 			for (const entry of visible) this.drawTrail(entry, now);
 			for (const entry of visible) {
@@ -334,21 +356,21 @@
 			this.drawLabels(visible, now, size);
 		},
 
-		drawSweep (beam) {
-			const { ctx } = this;
+		drawSweep (now) {
+			const { sweepCtx: ctx, dpr } = this;
 			const { center, radius } = this.geometry();
-			const angle = beam - Math.PI / 2;
-			const side = this.sweep.width / this.dpr;
-			ctx.save();
+			const side = this.sweep.width / dpr;
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			ctx.clearRect(0, 0, this.sweepCanvas.width, this.sweepCanvas.height);
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 			ctx.translate(center, center);
-			ctx.rotate(angle);
+			ctx.rotate(this.beamBearing(now) - Math.PI / 2);
 			ctx.drawImage(this.sweep, 0, -side, side, side);
-			ctx.restore();
 			ctx.strokeStyle = this.themed(0.85);
 			ctx.lineWidth = 1.5;
 			ctx.beginPath();
-			ctx.moveTo(center, center);
-			ctx.lineTo(center + Math.cos(angle) * radius, center + Math.sin(angle) * radius);
+			ctx.moveTo(0, 0);
+			ctx.lineTo(radius, 0);
 			ctx.stroke();
 		},
 
