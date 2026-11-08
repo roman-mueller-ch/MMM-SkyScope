@@ -1,6 +1,6 @@
 # MMM-SkyScope
 
-A live radar scope of the planes around your home for [MagicMirror²](https://magicmirror.builders/). Each plane is a silhouette turned the way it flies, coloured by its height, with a trail behind it and a sweeping beam over the top. The nearest flights are listed underneath, by airline and aircraft name.
+A live radar scope of the planes around your home for [MagicMirror²](https://magicmirror.builders/). Each plane is a silhouette turned the way it flies, coloured by its height, with a trail behind it and a sweeping beam over the top. The nearest flights are listed underneath with their flight number, route and aircraft.
 
 ![The scope in demo mode, with made-up planes and one in an emergency](docs/demo.png)
 
@@ -59,11 +59,11 @@ Without `lat` and `lon` it flies a made-up sky, marked DEMO in big letters.
 - **White:** above 25,000 ft
 - **Blinking red and white:** emergency (squawk 7500, 7600 or 7700, or an emergency status)
 
-Labels name the airline and the aircraft, such as `Swiss` over `A320neo`. A plane flying under its own registration, like a private plane, helicopter or balloon, shows the registration instead, such as `HB-QOZ` over `Hot-air balloon`. The list below the scope gives the full aircraft name, and for planes that are not airline flights, whether they are private and the country they are registered in. Callsigns of airlines the module does not know are shown as they are.
+Labels name the airline and the aircraft, such as `Swiss` over `A320neo`. A plane flying under its own registration, like a private plane, helicopter or balloon, shows the registration instead, such as `HB-QOZ` over `Hot-air balloon`. The list below the scope gives the flight number and route, such as `LX262C  AGP→ZRH`, then the full aircraft name and the airline. For planes that are not airline flights it gives the registration, whether they are private and the country they are registered in. Flight numbers and routes come from [adsbdb](https://www.adsbdb.com/), a shared database of scheduled flights that is now and then out of date. Where it has no route, the list shows the callsign and leaves the route empty. Callsigns of airlines the module does not know are shown as they are.
 
 ## Data and privacy
 
-Planes come from the free community networks [adsb.lol](https://adsb.lol/), with [adsb.fi](https://adsb.fi/) as the fallback. The status line says which one answered. Check their terms if you use this for anything beyond a personal mirror.
+Planes come from the free community networks [adsb.lol](https://adsb.lol/), with [adsb.fi](https://adsb.fi/) as the fallback. The status line says which one answered. Routes come from [adsbdb](https://www.adsbdb.com/), which is sent only the callsigns of airline flights in range, never a position. Each route is kept for six hours, so a flight is looked up once. Check their terms if you use this for anything beyond a personal mirror.
 
 Your home is rounded to about a kilometre before it is sent, so the feeds learn the area and not the address. The exact position stays on the mirror and is used only to draw the scope.
 

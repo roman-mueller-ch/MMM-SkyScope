@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
-const { demoPlanes, fetchPlanes, normalizeAircraft, parseResponse, requestArea } = require("../lib/feeds");
+const { demoPlanes, fetchPlanes, fetchRoute, isFlightCallsign, normalizeAircraft, parseResponse, parseRoute, requestArea } = require("../lib/feeds");
 
 const record = { hex: "abc123", flight: "SWR12   ", r: "HB-JCA", t: "BCS3", category: "A3", lat: 47.4, lon: 8.5, alt_baro: 36000, gs: 450, track: 90, baro_rate: -64, squawk: "2777", emergency: "none", seen_pos: 1.5 };
 
@@ -76,4 +76,47 @@ test("the demo sky moves along each plane's track", () => {
 	assert.equal(first.track, 20);
 	assert.ok(later.lat > first.lat, "a plane on track 020 goes north");
 	assert.ok(later.lon > first.lon, "a plane on track 020 goes east");
+});
+const routeBody = { response: { flightroute: {
+	callsign: "SWR262C", callsign_iata: "LX262C",
+	origin: { iata_code: "AGP", icao_code: "LEMG" },
+	destination: { iata_code: "ZRH", icao_code: "LSZH" }
+} } };
+
+test("only airline callsigns are looked up", () => {
+	assert.equal(isFlightCallsign("SWR262C"), true);
+	assert.equal(isFlightCallsign("HB-JCA"), false);
+	assert.equal(isFlightCallsign("ABC123"), true);
+	assert.equal(isFlightCallsign("N12345"), false);
+	assert.equal(isFlightCallsign("4B1805"), false);
+});
+
+test("a route gives the IATA flight number and airports, with ICAO as the fallback", () => {
+	assert.deepEqual(parseRoute(routeBody), { flight: "LX262C", from: "AGP", to: "ZRH" });
+	const icaoOnly = structuredClone(routeBody);
+	delete icaoOnly.response.flightroute.callsign_iata;
+	delete icaoOnly.response.flightroute.origin.iata_code;
+	assert.deepEqual(parseRoute(icaoOnly), { flight: "SWR262C", from: "LEMG", to: "ZRH" });
+	assert.equal(parseRoute({ response: "unknown callsign" }), null);
+});
+
+test("a route lookup sends the callsign and nothing else", async () => {
+	const urls = [];
+	const fakeFetch = async (url) => {
+		urls.push(url);
+		return { ok: true, status: 200, json: async () => routeBody };
+	};
+	assert.deepEqual(await fetchRoute("SWR262C", fakeFetch), { flight: "LX262C", from: "AGP", to: "ZRH" });
+	assert.deepEqual(urls, ["https://api.adsbdb.com/v0/callsign/SWR262C"]);
+});
+
+test("an unknown callsign has no route, a failing service throws", async () => {
+	assert.equal(await fetchRoute("NOPE123", async () => ({ ok: false, status: 404 })), null);
+	await assert.rejects(fetchRoute("SWR262C", async () => ({ ok: false, status: 500 })));
+});
+
+test("demo planes carry made-up routes, except the light plane", () => {
+	const planes = demoPlanes(0, 0, 50, 0);
+	assert.deepEqual(planes[0].route, { flight: "DEMO01", from: "LHR", to: "IST" });
+	assert.equal(planes[7].route, null);
 });

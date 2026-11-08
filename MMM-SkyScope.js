@@ -551,8 +551,11 @@
 				if (data.emergency) row.className = "skyscope-emergency";
 				// The airline says enough on its own. For anyone else, where the plane is from helps.
 				const airline = data.operator && data.operator !== "Private";
-				const detail = airline ? "" : [data.operator, data.country].filter(Boolean).join(", ");
-				for (const text of [data.label, data.aircraft, detail]) row.insertCell().textContent = text;
+				const detail = airline ? data.label : [data.operator, data.country].filter(Boolean).join(", ");
+				// An airline flight goes by its flight number, anyone else by the label, which is the registration.
+				const flight = data.route ? data.route.flight : airline ? data.callsign : data.label;
+				const route = data.route ? `${data.route.from}→${data.route.to}` : "";
+				for (const text of [flight, route, data.aircraft, detail]) row.insertCell().textContent = text;
 			}
 		}
 	});

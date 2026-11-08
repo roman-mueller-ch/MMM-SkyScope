@@ -5,7 +5,7 @@ A MagicMirror² module: a radar scope of the planes around a home point. See `RE
 ## Layout
 
 - `MMM-SkyScope.js`: the browser side. Draws the scope on a canvas and fills the status line and list.
-- `node_helper.js`: the server side. Answers `SKYSCOPE_FETCH` with `SKYSCOPE_DATA`, sharing identical requests for 5 seconds.
+- `node_helper.js`: the server side. Answers `SKYSCOPE_FETCH` with `SKYSCOPE_DATA`, sharing identical requests for 5 seconds. Routes are looked up in the background and kept for six hours, so they arrive with a later update.
 - `lib/feeds.js`: the feeds, record parsing and the demo sky. No MagicMirror dependencies, so `npm test` can load it.
 - `lib/names.js`: plain names for airline codes, aircraft type codes and registration countries. adsb.lol sends no aircraft descriptions, so the type table is what names most planes; add to it rather than to the feeds.
 - `tools/`: a preview page and scripts for checking the drawing without MagicMirror.
@@ -43,6 +43,7 @@ The scope is three stacked canvases, because a Raspberry Pi 3 in Electron draws 
 ## Decisions
 
 - **Feeds:** adsb.lol first, adsb.fi as the fallback. Both work without a key. airplanes.live answers with a request to contact them first, so it is not used.
+- **Routes:** adsbdb, looked up by callsign only. The adsb.lol routeset endpoint answered with an empty body when tried. Routes are shown in the list, not on the scope labels: a route line on every label roughly doubled the label lines covering other planes in the busy sky.
 - **Name:** SkyScope avoids the OWLOS and Flightradar24 names. The code is original; only the OWLOS README was read, and the README credits it as the inspiration.
 - **Controls:** no touch controls, as most mirrors have no touchscreen.
 - **Presence:** `followPresence` reads MMM-PIR-Sensor's config and copies its `powerSavingDelay`, so there is no second delay to keep in step. The radar must never sleep while the screen is on, so it stays awake if that module's `powerSaving` is off or an `alwaysOnPin` is set.
