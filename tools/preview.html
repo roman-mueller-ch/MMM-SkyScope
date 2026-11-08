@@ -25,6 +25,12 @@
 	};
 	var module = { exports: {} };
 </script>
+<script src="../lib/names.js"></script>
+<script>
+	const names = module.exports;
+	module = { exports: {} };
+	window.require = () => names;
+</script>
 <script src="../lib/feeds.js"></script>
 <script>
 	const feeds = module.exports;
@@ -89,6 +95,7 @@
 				callsign: `BUSY${String(i + 1).padStart(2, "0")}`,
 				type: "A320",
 				category: "A3",
+				...names.describe({ callsign: `BUSY${String(i + 1).padStart(2, "0")}`, registration: "", type: "A320", desc: "", category: "A3" }),
 				lat: Math.cos(bearing) * km / 110.574,
 				lon: Math.sin(bearing) * km / 111.32,
 				altFt: 3000 + i * 2400,
@@ -127,10 +134,10 @@
 			mod.ctx.fillText = fillText;
 
 			const visible = mod.visiblePlanes(now);
-			const callsigns = labels.filter((label) => visible.some((entry) => entry.plane.data.callsign === label.text));
+			const callsigns = labels.filter((label) => visible.some((entry) => entry.plane.data.label === label.text));
 			for (const label of callsigns) {
 				for (const { plane, position } of visible) {
-					if (plane.data.callsign === label.text) {
+					if (plane.data.label === label.text) {
 						if (sides[label.text] && sides[label.text] !== plane.labelSide) flips += 1;
 						sides[label.text] = plane.labelSide;
 						continue;
@@ -141,7 +148,7 @@
 				}
 			}
 			for (const { plane } of visible.slice(0, mod.config.labelCount)) {
-				if (!callsigns.some((label) => label.text === plane.data.callsign)) unlabelled.add(plane.data.callsign);
+				if (!callsigns.some((label) => label.text === plane.data.label)) unlabelled.add(plane.data.label);
 			}
 		}
 

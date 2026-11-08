@@ -358,13 +358,6 @@
 			return "#ffffff";
 		},
 
-		altitudeText (data) {
-			if (data.onGround) return "GND";
-			if (data.altFt === null) return "---";
-			const climb = data.climbFpm > 300 ? "↑" : data.climbFpm < -300 ? "↓" : "";
-			return `FL${String(Math.round(data.altFt / 100)).padStart(3, "0")}${climb}`;
-		},
-
 		// The planes to draw, nearest first. Also lets go of the ones the feed stopped reporting.
 		visiblePlanes (now) {
 			const visible = [];
@@ -496,17 +489,19 @@
 			for (const { plane, position } of ordered) {
 				if (count >= this.config.labelCount) break;
 				const { data } = plane;
-				const altitude = this.altitudeText(data);
 				ctx.font = "600 12px 'Roboto Condensed', sans-serif";
-				const width = Math.max(ctx.measureText(data.callsign).width, ctx.measureText(altitude).width);
+				const nameWidth = ctx.measureText(data.label).width;
+				ctx.font = "11px 'Roboto Condensed', sans-serif";
+				const width = Math.max(nameWidth, ctx.measureText(data.model).width);
 				const box = this.chooseLabelBox(plane, this.toScreen(position), width, planeBoxes, placed, size);
 				if (!box) continue;
 				placed.push(box);
 				count += 1;
 				ctx.fillStyle = this.planeColor(data, now);
-				ctx.fillText(data.callsign, box.left, box.top + 12);
+				ctx.font = "600 12px 'Roboto Condensed', sans-serif";
+				ctx.fillText(data.label, box.left, box.top + 12);
 				ctx.font = "11px 'Roboto Condensed', sans-serif";
-				ctx.fillText(altitude, box.left, box.top + 24);
+				ctx.fillText(data.model, box.left, box.top + 24);
 			}
 		},
 
@@ -550,19 +545,14 @@
 			}
 
 			this.listEl.replaceChildren();
-			for (const { plane, position, km } of visible.slice(0, this.config.listCount)) {
+			for (const { plane } of visible.slice(0, this.config.listCount)) {
 				const { data } = plane;
-				const bearing = (Math.atan2(position.x, position.y) * 180 / Math.PI + 360) % 360;
 				const row = this.listEl.insertRow();
 				if (data.emergency) row.className = "skyscope-emergency";
-				const cells = [
-					data.callsign,
-					data.type,
-					this.altitudeText(data),
-					`${Math.round(km / KM_PER_UNIT[this.units])} ${this.units}`,
-					`${String(Math.round(bearing) % 360).padStart(3, "0")}°`
-				];
-				for (const text of cells) row.insertCell().textContent = text;
+				// The airline says enough on its own. For anyone else, where the plane is from helps.
+				const airline = data.operator && data.operator !== "Private";
+				const detail = airline ? "" : [data.operator, data.country].filter(Boolean).join(", ");
+				for (const text of [data.label, data.aircraft, detail]) row.insertCell().textContent = text;
 			}
 		}
 	});

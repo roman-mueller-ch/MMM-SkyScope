@@ -19,6 +19,8 @@ test("a record becomes a plane", () => {
 	assert.equal(plane.ageMs, 1500);
 	assert.equal(plane.emergency, false);
 	assert.equal(plane.onGround, false);
+	assert.equal(plane.label, "Swiss");
+	assert.equal(plane.aircraft, "Airbus A220-300");
 });
 
 test("a plane on the ground has no altitude", () => {

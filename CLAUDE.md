@@ -7,6 +7,7 @@ A MagicMirror² module: a radar scope of the planes around a home point. See `RE
 - `MMM-SkyScope.js`: the browser side. Draws the scope on a canvas and fills the status line and list.
 - `node_helper.js`: the server side. Answers `SKYSCOPE_FETCH` with `SKYSCOPE_DATA`, sharing identical requests for 5 seconds.
 - `lib/feeds.js`: the feeds, record parsing and the demo sky. No MagicMirror dependencies, so `npm test` can load it.
+- `lib/names.js`: plain names for airline codes, aircraft type codes and registration countries. adsb.lol sends no aircraft descriptions, so the type table is what names most planes; add to it rather than to the feeds.
 - `tools/`: a preview page and scripts for checking the drawing without MagicMirror.
 
 The browser side asks for data on a timer and the helper keeps no timers, so `suspend` and `resume` only have to deal with the browser side. Those timers stop for two separate reasons: `hidden`, when MagicMirror hides the module, and `asleep`, when MMM-PIR-Sensor has the screen off. They restart only when neither applies.

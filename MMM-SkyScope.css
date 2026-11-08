@@ -41,6 +41,10 @@
 	text-align: left;
 }
 
+.skyscope-list td:nth-child(3) {
+	opacity: 0.7;
+}
+
 .skyscope-emergency td,
 .skyscope-emergency td:first-child {
 	color: #ff3b30;

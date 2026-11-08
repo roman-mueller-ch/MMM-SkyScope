@@ -1,6 +1,6 @@
 # MMM-SkyScope
 
-A live radar scope of the planes around your home for [MagicMirror²](https://magicmirror.builders/). Each plane is a silhouette turned the way it flies, coloured by its height, with a trail behind it and a sweeping beam over the top. The nearest flights are listed underneath.
+A live radar scope of the planes around your home for [MagicMirror²](https://magicmirror.builders/). Each plane is a silhouette turned the way it flies, coloured by its height, with a trail behind it and a sweeping beam over the top. The nearest flights are listed underneath, by airline and aircraft name.
 
 ![The scope in demo mode, with made-up planes and one in an emergency](docs/demo.png)
 
@@ -47,7 +47,7 @@ Without `lat` and `lon` it flies a made-up sky, marked DEMO in big letters.
 | `hideGround` | `true` | Hide planes parked or taxiing. |
 | `trailLength` | `12` | Reports kept in each trail. |
 | `labelCount` | `6` | Most planes labelled on the scope. |
-| `listCount` | `5` | Rows in the list, `0` for none. |
+| `listCount` | `5` | Rows in the list, nearest first, `0` for none. |
 | `followPresence` | `true` | Stop drawing and fetching while [MMM-PIR-Sensor](https://github.com/paviro/MMM-PIR-Sensor) has the screen off. Has no effect without that module, with its `powerSaving` off or with an `alwaysOnPin` set. |
 | `demo` | `false` | Show the made-up sky even with a home set. |
 
@@ -59,7 +59,7 @@ Without `lat` and `lon` it flies a made-up sky, marked DEMO in big letters.
 - **White:** above 25,000 ft
 - **Blinking red and white:** emergency (squawk 7500, 7600 or 7700, or an emergency status)
 
-Labels show the flight level, with an arrow when the plane is climbing or descending. `FL350↓` is about 35,000 ft and coming down.
+Labels name the airline and the aircraft, such as `Swiss` over `A320neo`. A plane flying under its own registration, like a private plane, helicopter or balloon, shows the registration instead, such as `HB-QOZ` over `Hot-air balloon`. The list below the scope gives the full aircraft name, and for planes that are not airline flights, whether they are private and the country they are registered in. Callsigns of airlines the module does not know are shown as they are.
 
 ## Data and privacy
 
